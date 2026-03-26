@@ -279,3 +279,56 @@ def test_nested_generic_no_inf_recursion(lazy):
         fieldD=A(field=1.2), fieldC=B(fieldB=A(field=2)), fieldB=A(field=2)
     )
     assert D.from_dict(obj.to_dict()) == obj
+
+
+def test_cross_module_generics_with_forward_refs(tmp_path, lazy):
+    base_code = f"""\
+from dataclasses import dataclass
+from mashumaro import DataClassDictMixin
+from mashumaro.config import BaseConfig
+from mashumaro.types import Discriminator
+from typing import Generic, TypeVar
+
+T = TypeVar("T")
+
+@dataclass
+class MyBase(Generic[T], DataClassDictMixin):
+    field: T
+
+    class Config(BaseConfig):
+        lazy_compilation = {lazy}
+
+"""
+    sub_code = """\
+from __future__ import annotations
+from dataclasses import dataclass
+from _base_mod import MyBase, T
+
+
+
+@dataclass
+class SubType(MyBase["Other"]): ...
+
+@dataclass
+class Other:
+    inner: int
+"""
+    base_file = tmp_path / "_base_mod.py"
+    sub_file = tmp_path / "_sub_mod.py"
+    base_file.write_text(base_code)
+    sub_file.write_text(sub_code)
+
+    import sys
+
+    original_path = sys.path.copy()
+    sys.path.insert(0, str(tmp_path))
+    try:
+        import _sub_mod
+
+        result = _sub_mod.SubType.from_dict({"field": {"inner": 42}})
+        assert type(result).__name__ == "SubType"
+
+    finally:
+        sys.path[:] = original_path
+        sys.modules.pop("_base_mod", None)
+        sys.modules.pop("_sub_mod", None)
