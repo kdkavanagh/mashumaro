@@ -144,7 +144,7 @@ Use pip to install:
 $ pip install mashumaro
 ```
 
-The current version of `mashumaro` supports Python versions 3.9 — 3.14.
+The current version of `mashumaro` supports Python versions 3.10 — 3.14.
 
 
 It's not recommended to use any version of Python that has reached its
@@ -156,6 +156,7 @@ of Python.
 
 | Python Version | Last Version of mashumaro                                          | Python EOL |
 |----------------|--------------------------------------------------------------------|------------|
+| 3.9            | [3.20](https://github.com/Fatal1ty/mashumaro/releases/tag/v3.20)   | 2025-10-31 |
 | 3.8            | [3.14](https://github.com/Fatal1ty/mashumaro/releases/tag/v3.14)   | 2024-10-07 |
 | 3.7            | [3.9.1](https://github.com/Fatal1ty/mashumaro/releases/tag/v3.9.1) | 2023-06-27 |
 | 3.6            | [3.1.1](https://github.com/Fatal1ty/mashumaro/releases/tag/v3.1.1) | 2021-12-23 |
@@ -187,7 +188,7 @@ There is support for generic types from the standard [`typing`](https://docs.pyt
 * [`ChainMap`](https://docs.python.org/3/library/typing.html#typing.ChainMap)
 * [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)
 
-for standard generic types on [PEP 585](https://www.python.org/dev/peps/pep-0585/) compatible Python (3.9+):
+for standard generic types on [PEP 585](https://www.python.org/dev/peps/pep-0585/):
 * [`list`](https://docs.python.org/3/library/stdtypes.html#list)
 * [`tuple`](https://docs.python.org/3/library/stdtypes.html#tuple)
 * [`namedtuple`](https://docs.python.org/3/library/collections.html#collections.namedtuple)
@@ -3074,6 +3075,78 @@ print(
 ```
 </details>
 
+For more complex field-level schema customization, `Annotated` can also be
+used with a `JSONSchema` instance. In that case, explicitly set schema
+attributes are applied on top of the automatically generated schema. This is
+especially useful for content-related keywords such as `contentEncoding`,
+`contentMediaType`, and `contentSchema`:
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+
+from mashumaro.jsonschema import build_json_schema
+from mashumaro.jsonschema.models import JSONSchema, JSONSchemaInstanceType
+
+
+@dataclass
+class Upload:
+    file: Annotated[
+        bytes,
+        JSONSchema(
+            contentEncoding="base64",
+            contentMediaType="application/pdf",
+        ),
+    ]
+    metadata: Annotated[
+        str,
+        JSONSchema(
+            contentMediaType="application/json",
+            contentSchema=JSONSchema(
+                type=JSONSchemaInstanceType.OBJECT,
+            ),
+        ),
+    ]
+
+
+print(build_json_schema(Upload).to_json())
+```
+
+<details>
+<summary>Click to show the result</summary>
+
+```json
+{
+    "type": "object",
+    "title": "Upload",
+    "properties": {
+        "file": {
+            "type": "string",
+            "format": "base64",
+            "contentEncoding": "base64",
+            "contentMediaType": "application/pdf"
+        },
+        "metadata": {
+            "type": "string",
+            "contentMediaType": "application/json",
+            "contentSchema": {
+                "type": "object"
+            }
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "file",
+        "metadata"
+    ]
+}
+```
+</details>
+
+This overlay mechanism is intended for regular schema keywords. Structural
+keywords such as `$schema`, `$ref`, and `$defs` are not applied from
+`Annotated[..., JSONSchema(...)]`.
+
 The [`$schema`](https://json-schema.org/draft/2020-12/json-schema-core.html#name-the-schema-keyword)
 keyword can be added by setting `with_dialect_uri` to True:
 
@@ -3467,8 +3540,13 @@ print(schema.to_json())
 
 ### Extending JSON Schema
 
-Using a `Config` class it is possible to override some parts of the schema.
-Currently, you can do the following:
+For field-level schema customization, prefer using
+`Annotated[..., JSONSchema(...)]` as shown above. It keeps schema overrides
+close to the field type and is the recommended way to add extra keywords such
+as `description`, `contentMediaType`, or `contentSchema`.
+
+Using a `Config` class is still useful when you need to override schema parts
+at the dataclass level. Currently, you can do the following:
 * override some field schemas using the "properties" key
 * change `additionalProperties` using the "additionalProperties" key
 

@@ -1,13 +1,4 @@
-from typing import (
-    Any,
-    Generic,
-    Optional,
-    Type,
-    TypeVar,
-    Union,
-    final,
-    overload,
-)
+from typing import Any, Generic, Type, TypeVar, final, overload
 
 import tomli_w
 
@@ -31,22 +22,19 @@ class TOMLDecoder(Generic[T]):
         self,
         shape_type: Type[T],
         *,
-        default_dialect: Optional[Type[Dialect]] = None,
+        default_dialect: Type[Dialect] | None = None,
     ): ...
 
     @overload
     def __init__(
-        self,
-        shape_type: Any,
-        *,
-        default_dialect: Optional[Type[Dialect]] = None,
+        self, shape_type: Any, *, default_dialect: Type[Dialect] | None = None
     ): ...
 
     def __init__(
         self,
-        shape_type: Union[Type[T], Any],
+        shape_type: Type[T] | Any,
         *,
-        default_dialect: Optional[Type[Dialect]] = None,
+        default_dialect: Type[Dialect] | None = None,
     ):
         if default_dialect is not None:
             default_dialect = TOMLDialect.merge(default_dialect)
@@ -67,22 +55,19 @@ class TOMLEncoder(Generic[T]):
         self,
         shape_type: Type[T],
         *,
-        default_dialect: Optional[Type[Dialect]] = None,
+        default_dialect: Type[Dialect] | None = None,
     ): ...
 
     @overload
     def __init__(
-        self,
-        shape_type: Any,
-        *,
-        default_dialect: Optional[Type[Dialect]] = None,
+        self, shape_type: Any, *, default_dialect: Type[Dialect] | None = None
     ): ...
 
     def __init__(
         self,
-        shape_type: Union[Type[T], Any],
+        shape_type: Type[T] | Any,
         *,
-        default_dialect: Optional[Type[Dialect]] = None,
+        default_dialect: Type[Dialect] | None = None,
     ):
         if default_dialect is not None:
             default_dialect = TOMLDialect.merge(default_dialect)
@@ -94,14 +79,14 @@ class TOMLEncoder(Generic[T]):
         code_builder.add_encode_method(shape_type, self, tomli_w.dumps)
 
     @final
-    def encode(self, obj: T) -> bytes: ...
+    def encode(self, obj: T) -> str: ...
 
 
 def toml_decode(data: EncodedData, shape_type: Type[T]) -> T:
     return TOMLDecoder(shape_type).decode(data)
 
 
-def toml_encode(obj: T, shape_type: Union[Type[T], Any]) -> bytes:
+def toml_encode(obj: T, shape_type: Type[T] | Any) -> str:
     return TOMLEncoder(shape_type).encode(obj)
 
 

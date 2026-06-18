@@ -11,6 +11,7 @@ from tests.entities import MyGenericDataClass, SerializableTypeGenericList
 
 T = TypeVar("T")
 S = TypeVar("S")
+K = TypeVar("K")
 P = TypeVar("P", Mapping[int, int], List[float])
 
 
@@ -281,6 +282,7 @@ def test_nested_generic_no_inf_recursion(lazy):
     assert D.from_dict(obj.to_dict()) == obj
 
 
+@pytest.mark.parametrize("lazy", [True, False])
 def test_cross_module_generics_with_forward_refs(tmp_path, lazy):
     base_code = f"""\
 from dataclasses import dataclass
@@ -332,3 +334,25 @@ class Other:
         sys.path[:] = original_path
         sys.modules.pop("_base_mod", None)
         sys.modules.pop("_sub_mod", None)
+
+
+def test_vars_order_when_generic_presented_in_bases() -> None:
+    @dataclass
+    class Base(DataClassDictMixin, Generic[T]):
+        kind: str = "base"
+
+    class NotSerializable:
+        pass
+
+    @dataclass
+    class Extended(Base[K], Generic[S, K]):
+        payload: S | None = None
+
+    @dataclass
+    class Sub(Extended[Base, NotSerializable]):
+        pass
+
+    assert Sub(payload=Base()).to_dict() == {
+        "kind": "base",
+        "payload": {"kind": "base"},
+    }
